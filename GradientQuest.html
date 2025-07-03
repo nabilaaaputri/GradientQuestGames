@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gradient Quest</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #fefcea, #f1da36);
+      text-align: center;
+      padding: 40px;
+      overflow-x: hidden;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 90px);
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .tile {
+      width: 90px;
+      height: 90px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.2s, outline 0.2s;
+    }
+
+    .tile:hover {
+      transform: scale(1.05);
+    }
+
+    .selected {
+      outline: 3px solid #444;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px 5px;
+      background-color: #4caf50;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #3f9443;
+    }
+
+    #result, #timer, #steps, #current-stage, #hint {
+      margin-top: 10px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    #final-message, #game-over-message, #start-screen, #loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      color: #fff;
+      font-size: 28px;
+      font-weight: bold;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      flex-direction: column;
+      text-align: center;
+      animation: fireworks 1s ease-in-out infinite alternate;
+    }
+
+    #final-message button, #game-over-message button, #start-screen button {
+      margin-top: 20px;
+      background-color: #2196f3;
+    }
+
+    .spinner {
+      margin-top: 20px;
+      width: 50px;
+      height: 50px;
+      border: 6px solid #fff;
+      border-top: 6px solid #ffdd57;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes fireworks {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.05); opacity: 0.9; }
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* ANIMASI SEMANGAT! */
+    @keyframes bounceInDuar {
+      0% {
+        opacity: 0;
+        transform: scale(0.3);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+      70% {
+        transform: scale(0.9);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    #start-screen div {
+      animation: bounceInDuar 1s ease-out both;
+    }
+  </style>
+</head>
+<body>
+  <div id="start-screen">
+    <div>
+      <h2>🎯 Selamat datang di <span style="color:#ffe066">Gradient Quest!</span></h2>
+      <p>
+        🧩 Kamu harus menyelesaikan <strong>5 sesi berurutan</strong>.<br>
+        🎨 Susun kotak warna dari yang <strong>paling terang hingga paling gelap</strong>.<br>
+        Siap menantang mata dan logikamu?
+      </p>
+      <button onclick="startGame()">🚀 Mulai Game</button>
+    </div>
+  </div>
+
+  <h1>🎨 Gradient Quest 🎨</h1>
+  <p id="current-stage">Sesi ke-1</p>
+  <p id="hint">💡 Urutkan dari warna paling terang ke warna paling gelap</p>
+  <div class="board" id="board"></div>
+  <div>
+    <button onclick="shuffleTiles()">🔄 Acak Warna</button>
+    <button onclick="checkWin()">✅ Cek Urutan</button>
+  </div>
+  <div id="timer">⏱️ Waktu: 90 detik</div>
+  <div id="steps">👣 Langkah: 0</div>
+  <div id="result"></div>
+
+  <div id="final-message">
+    <h2>🥳 Selamat!</h2>
+    <p>🎉 Kamu telah menyelesaikan semua sesi dengan sukses! 🎉<br>
+    🌈 Hebat banget! Mata dan logikamu tajam!</p>
+    <button onclick="restartGame()">🔁 Main Lagi</button>
+  </div>
+
+  <div id="game-over-message">
+    <h2>⏰ Game Over!</h2>
+    <p>Waktu telah habis sebelum kamu menyelesaikan semua sesi.<br>
+    Jangan menyerah, coba lagi ya! 💪</p>
+    <button onclick="restartGame()">🔁 Coba Lagi</button>
+  </div>
+
+  <div id="loading-overlay">
+    ⏳ Tunggu sebentar...
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    const colorStages = [
+      ["#d0ebff", "#a5d8ff", "#74c0fc", "#4dabf7", "#339af0", "#228be6", "#1c7ed6", "#1971c2", "#1864ab"],
+      ["#d3f9d8", "#b2f2bb", "#8ce99a", "#69db7c", "#51cf66", "#40c057", "#37b24d", "#2f9e44", "#2b8a3e"],
+      ["#fff3bf", "#ffec99", "#ffe066", "#ffd43b", "#fcc419", "#fab005", "#f59f00", "#f08c00", "#e67700"],
+      ["#ffc9c9", "#ffa8a8", "#ff8787", "#ff6b6b", "#fa5252", "#f03e3e", "#e03131", "#c92a2a", "#a51111"],
+      ["#f8f0fc", "#eebefa", "#da77f2", "#cc5de8", "#be4bdb", "#ae3ec9", "#9c36b5", "#862e9c", "#6b2d91"]
+    ];
+
+    let stageIndex = 0;
+    let tiles = [];
+    let firstSelected = null;
+    let steps = 0;
+    let timeLeft = 90;
+    let timerInterval = null;
+
+    function getCurrentColors() {
+      return colorStages[stageIndex];
+    }
+
+    function createTiles() {
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+      tiles = [];
+      const colors = getCurrentColors();
+      const shuffledColors = [...colors].sort(() => 0.5 - Math.random());
+
+      shuffledColors.forEach((color, index) => {
+        const div = document.createElement("div");
+        div.classList.add("tile");
+        div.style.backgroundColor = color;
+        div.dataset.correctIndex = getCurrentColors().indexOf(color);
+        div.dataset.currentIndex = index;
+        div.addEventListener("click", () => handleClick(div));
+        board.appendChild(div);
+        tiles.push(div);
+      });
+    }
+
+    function handleClick(tile) {
+      if (!firstSelected) {
+        firstSelected = tile;
+        tile.classList.add("selected");
+      } else if (tile === firstSelected) {
+        tile.classList.remove("selected");
+        firstSelected = null;
+      } else {
+        swapColors(firstSelected, tile);
+        firstSelected.classList.remove("selected");
+        firstSelected = null;
+        steps++;
+        updateSteps();
+      }
+    }
+
+    function swapColors(tile1, tile2) {
+      const tempColor = tile1.style.backgroundColor;
+      const tempCorrect = tile1.dataset.correctIndex;
+      tile1.style.backgroundColor = tile2.style.backgroundColor;
+      tile1.dataset.correctIndex = tile2.dataset.correctIndex;
+      tile2.style.backgroundColor = tempColor;
+      tile2.dataset.correctIndex = tempCorrect;
+    }
+
+    function checkWin() {
+      const currentColors = Array.from(document.querySelectorAll(".tile"))
+        .map(tile => tile.style.backgroundColor.replace(/\s/g, '').toLowerCase());
+      const targetColors = getCurrentColors()
+        .map(c => {
+          const temp = document.createElement("div");
+          temp.style.backgroundColor = c;
+          document.body.appendChild(temp);
+          const computed = window.getComputedStyle(temp).backgroundColor;
+          document.body.removeChild(temp);
+          return computed.replace(/\s/g, '').toLowerCase();
+        });
+
+      const isCorrect = currentColors.every((color, index) => color === targetColors[index]);
+      const result = document.getElementById("result");
+
+      if (isCorrect) {
+        if (stageIndex + 1 < colorStages.length) {
+          result.textContent = "🎉 Berhasil! Sesi berikutnya dimulai...";
+          result.style.color = "lime";
+          setTimeout(() => {
+            nextStage();
+          }, 2000);
+        } else {
+          clearInterval(timerInterval);
+          result.textContent = "";
+          document.getElementById("final-message").style.display = "flex";
+        }
+      } else {
+        result.textContent = "❌ Belum benar, coba lagi ya!";
+        result.style.color = "red";
+      }
+    }
+
+    function nextStage() {
+      if (stageIndex + 1 < colorStages.length) {
+        stageIndex++;
+        resetGame(false);
+      }
+    }
+
+    function shuffleTiles() {
+      resetGame(false);
+    }
+
+    function resetGame(resetTimer = true) {
+      steps = 0;
+      if (resetTimer) {
+        timeLeft = 90;
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          updateTimer();
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            document.getElementById("game-over-message").style.display = "flex";
+          }
+        }, 1000);
+      }
+      updateSteps();
+      updateTimer();
+      createTiles();
+      document.getElementById("result").textContent = "";
+      document.getElementById("current-stage").textContent = `Sesi ke-${stageIndex + 1}`;
+    }
+
+    function updateSteps() {
+      document.getElementById("steps").textContent = `👣 Langkah: ${steps}`;
+    }
+
+    function updateTimer() {
+      document.getElementById("timer").textContent = `⏱️ Waktu: ${timeLeft} detik`;
+    }
+
+    function restartGame() {
+      stageIndex = 0;
+      clearInterval(timerInterval);
+      document.getElementById("final-message").style.display = "none";
+      document.getElementById("game-over-message").style.display = "none";
+      const loadingOverlay = document.getElementById("loading-overlay");
+      loadingOverlay.style.display = "flex";
+      setTimeout(() => {
+        loadingOverlay.style.display = "none";
+        document.getElementById("start-screen").style.display = "flex";
+      }, 1500);
+    }
+
+    function startGame() {
+      document.getElementById("start-screen").style.display = "none";
+      resetGame(true);
+    }
+
+    document.getElementById("start-screen").style.display = "flex";
+  </script>
+</body>
+</html>
